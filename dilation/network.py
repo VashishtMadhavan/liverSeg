@@ -5,14 +5,16 @@ from __future__ import print_function, division
 from caffe import layers as L
 from caffe import params as P
 
-
 __author__ = 'Fisher Yu'
 __copyright__ = 'Copyright (c) 2016, Fisher Yu'
 __email__ = 'i@yf.io'
 __license__ = 'MIT'
 
 
-#TODO: try adding scaling data layer.
+def make_medical_data(image_list_path, crop_size, batch_size):
+	pydata_params=dict(data_file=image_list_path, crop_size=crop_size, batch_size=batch_size)
+	data, label = L.Python(module='medical', layer='MedicalDataLayer', param_str=str(pydata_params), ntop=2)
+	return data, label
 
 def make_image_label_data(image_list_path, label_list_path, batch_size,
                           mirror, crop_size, mean_pixel,

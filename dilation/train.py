@@ -24,14 +24,14 @@ def make_solver(options):
     solver.train_net = options.train_net
     if options.test_net is not None:
         solver.test_net.append(options.test_net)
-        solver.test_iter.append(50)
+        solver.test_iter.append(100)
     solver.test_interval = 100
     solver.base_lr = options.lr
     solver.lr_policy = "step"
-    solver.gamma = 0.1
-    solver.stepsize = 100000
+    solver.gamma = 0.2
+    solver.stepsize = 6000
     solver.display = 5
-    solver.max_iter = 400000
+    solver.max_iter = 12000
     solver.momentum = options.momentum
     solver.weight_decay = 0.0005
     solver.regularization_type = 'L2'
@@ -50,9 +50,10 @@ def make_frontend_vgg(options, is_training, isWeighted=False):
     image_path = options.train_image if is_training else options.test_image
     label_path = options.train_label if is_training else options.test_label
     net = caffe.NetSpec()
-    net.data, net.label = network.make_image_label_data(
-        image_path, label_path, batch_size,
-        is_training, options.crop_size, options.mean)
+    #net.data, net.label = network.make_image_label_data(
+    #    image_path, label_path, batch_size,
+    #    is_training, options.crop_size, options.mean)
+    net.data, net.label = network.make_medical_data(image_path, crop_size, batch_size)
     last = network.build_frontend_vgg(
         net, net.data, options.classes)[0]
     if options.up:

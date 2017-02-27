@@ -4,6 +4,7 @@
 from __future__ import print_function, division
 from caffe import layers as L
 from caffe import params as P
+import sys
 
 __author__ = 'Fisher Yu'
 __copyright__ = 'Copyright (c) 2016, Fisher Yu'

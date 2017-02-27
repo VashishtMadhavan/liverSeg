@@ -8,7 +8,6 @@ from caffe.proto import caffe_pb2
 import os
 from os.path import dirname, exists, join
 import subprocess
-
 import network
 
 
@@ -31,9 +30,9 @@ def make_solver(options):
     solver.gamma = 0.2
     solver.stepsize = 6000
     solver.display = 5
-    solver.max_iter = 12000
+    solver.max_iter = 25000
     solver.momentum = options.momentum
-    solver.weight_decay = 0.0005
+    solver.weight_decay = 0.0001
     solver.regularization_type = 'L2'
     solver.snapshot = 2000
     solver.solver_mode = solver.GPU
@@ -50,10 +49,10 @@ def make_frontend_vgg(options, is_training, isWeighted=False):
     image_path = options.train_image if is_training else options.test_image
     label_path = options.train_label if is_training else options.test_label
     net = caffe.NetSpec()
-    #net.data, net.label = network.make_image_label_data(
-    #    image_path, label_path, batch_size,
-    #    is_training, options.crop_size, options.mean)
-    net.data, net.label = network.make_medical_data(image_path, crop_size, batch_size)
+    net.data, net.label = network.make_image_label_data(
+        image_path, label_path, batch_size,
+        is_training, options.crop_size, options.mean)
+    #net.data, net.label = network.make_medical_data(image_path, options.crop_size, batch_size)
     last = network.build_frontend_vgg(
         net, net.data, options.classes)[0]
     if options.up:
@@ -65,14 +64,14 @@ def make_frontend_vgg(options, is_training, isWeighted=False):
         weights = [float(x.rstrip().split(':')[1]) for x in open(options.ratio_file).readlines()]
 	weights[0] = 1./weights[0]; weights[1] = 1./weights[1]
         total = sum(weights)
-	weights[0] /= total; weights[1] /= total)
+	weights[0] /= total; weights[1] /= total;
         net.loss = network.make_weighted_softmax_loss(last, net.label, options.classes, weights)
     if not is_training:
         net.accuracy = network.make_accuracy(last, net.label)
     return net.to_proto()
 
 
-def make_context(options, is_training):
+def make_context(options, is_training,isWeighted=False):
     batch_size = options.train_batch if is_training else options.test_batch
     image_path = options.train_image if is_training else options.test_image
     label_path = options.train_label if is_training else options.test_label
@@ -85,13 +84,20 @@ def make_context(options, is_training):
     if options.up:
         net.upsample = network.make_upsample(last, options.classes)
         last = net.upsample
-    net.loss = network.make_softmax_loss(last, net.label)
+    if not isWeighted:
+        net.loss = network.make_softmax_loss(last, net.label)
+    else:
+	weights = [float(x.rstrip().split(':')[1]) for x in open(options.ratio_file).readlines()]
+	weights[0] = 1./weights[0]; weights[1] = 1./weights[1]
+	total = sum(weights)
+	weights[0] /= total; weights[1] /= total
+	net.loss = network.make_weighted_softmax_loss(last,net.label,options.classes,weights)
     if not is_training:
         net.accuracy = network.make_accuracy(last, net.label)
     return net.to_proto()
 
 
-def make_joint(options, is_training):
+def make_joint(options, is_training,isWeighted=False):
     batch_size = options.train_batch if is_training else options.test_batch
     image_path = options.train_image if is_training else options.test_image
     label_path = options.train_label if is_training else options.test_label
@@ -106,15 +112,24 @@ def make_joint(options, is_training):
     if options.up:
         net.upsample = network.make_upsample(last, options.classes)
         last = net.upsample
-    net.loss = network.make_softmax_loss(last, net.label)
+    if not isWeighted:
+    	net.loss = network.make_softmax_loss(last, net.label)
+    else:
+    	weights = [float(x.rstrip().split(':')[1]) for x in open(options.ratio_file).readlines()]
+    	weights[0] = 1./weights[0]; weights[1] = 1./weights[1]
+    	total = sum(weights)
+    	weights[0] /= total; weights[1] /= total
+    	net.loss = network.make_weighted_softmax_loss(last,net.label,options.classes,weights)
     if not is_training:
         net.accuracy = network.make_accuracy(last, net.label)
     return net.to_proto()
 
 
 def make_net(options, is_training):
-    return globals()['make_' + options.model](options, is_training)
-
+    if not options.ratio_file:
+    	return globals()['make_' + options.model](options, is_training, isWeighted=False)
+    else:
+	return globals()['make_' + options.model](options, is_training, isWeighted=True)
 
 def make_nets(options):
     train_net = make_net(options, True)
@@ -126,8 +141,8 @@ def make_nets(options):
 
 
 def process_options(options):
-    assert (options.crop_size - 372) % 8 == 0, \
-        "The crop size must be a multiple of 8 after removing the margin"
+    #assert (options.crop_size - 372) % 8 == 0, \
+    #    "The crop size must be a multiple of 8 after removing the margin"
     assert len(options.mean) == 3
 
     assert options.model == 'context' or options.weights is not None, \
@@ -222,7 +237,7 @@ def main():
                         help='Training batch size.')
     parser.add_argument('--test_batch', type=int, default=2,
                         help='Testing batch size. If it is 0, no test phase.')
-    parser.add_argument('--crop_size', type=int, default=500)
+    parser.add_argument('--crop_size', type=int, default=512)
     parser.add_argument('--lr', type=float, default=0,
                         help='Solver SGD learning rate')
     parser.add_argument('--momentum', type=float, default=0.9,
@@ -242,8 +257,7 @@ def main():
                              'The dimensions of labels for the loss function.')
     parser.add_argument('--iter_size', type=int, default=1,
                         help='Number of passes/batches in each iteration.')
-
-    parser.add_argument('--ratio_file', type=str, default='ratio.txt')
+    parser.add_argument('--ratio_file', type=str, default=None)
 
 
     options = process_options(parser.parse_args())

@@ -1,6 +1,6 @@
 import os
 
-work_dir = "../runs/baseline/"
+work_dir = "../runs/weight2/"
 if not os.path.exists(work_dir):
     os.mkdir(work_dir)
 
@@ -16,7 +16,7 @@ gpu = 0
 
 weights = "/x/vashishtm/caffemodels/vgg_conv.caffemodel"
 caffe_dir = "/home/vashishtm/caffe-dilation/build_master/tools/caffe"
-
+ratio_file = "/home/vashishtm/liverSeg/src/ratio.txt"
 log_file = work_dir + "train.log"
 
 runstring = """python ../dilation/train.py frontend \
@@ -33,6 +33,7 @@ runstring = """python ../dilation/train.py frontend \
 --classes %s \
 --lr %s \
 --gpu %s \
---momentum 0.9 2>&1 | tee -a %s""" % (work_dir, train_list, train_label, test_list, test_label,caffe_dir, weights, str(classes), str(lr), str(gpu), log_file)
+--ratio_file %s \
+--momentum 0.9 2>&1 | tee -a %s""" % (work_dir, train_list, train_label, test_list, test_label,caffe_dir, weights, str(classes), str(lr), str(gpu), ratio_file, log_file)
 
 os.system(runstring)
